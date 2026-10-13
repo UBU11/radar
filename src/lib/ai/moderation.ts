@@ -1,11 +1,14 @@
+import { groq } from "@ai-sdk/groq";
 import { mistral } from "@ai-sdk/mistral";
 import { generateObject } from "ai";
 import { MarketModerationSchema, type MarketModerationOutput } from "@/types/moderation";
 
 export async function moderateMarketIdea(rawSubmission: string): Promise<MarketModerationOutput> {
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) {
-    // ponytail: fallback mock during local test when Mistral key is not set
+  const groqApiKey = process.env.GROQ_API_KEY;
+  const mistralApiKey = process.env.MISTRAL_API_KEY;
+
+  if (!groqApiKey && !mistralApiKey) {
+    // ponytail: fallback mock for local dev when neither Groq nor Mistral API key is set
     return {
       title: rawSubmission.slice(0, 100),
       category: "Campus",
@@ -15,8 +18,12 @@ export async function moderateMarketIdea(rawSubmission: string): Promise<MarketM
     };
   }
 
+  const model = groqApiKey
+    ? groq("llama-3.3-70b-versatile")
+    : mistral("mistral-large-latest");
+
   const { object } = await generateObject({
-    model: mistral("mistral-large-latest"),
+    model,
     schema: MarketModerationSchema,
     prompt: `You are a compliance moderator for "Radar", an on-campus prediction market.
 Analyze the following student-submitted market idea:

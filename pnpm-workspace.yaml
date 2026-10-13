@@ -1,0 +1,2 @@
+allowBuilds:
+  '@journeyapps/wa-sqlite': true

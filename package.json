@@ -11,6 +11,7 @@
     "update-types": "supabase gen types typescript --project-id local > src/types/database.ts"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^1.2.9",
     "@ai-sdk/mistral": "^1.1.8",
     "@powersync/web": "^1.18.2",
     "@supabase/ssr": "^0.5.2",

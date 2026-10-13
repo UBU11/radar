@@ -38,7 +38,7 @@ export function MeetupSplitKey({
       }
 
       setIsVerified(true);
-      setRevealedName(result.realName);
+      setRevealedName(result.realName ?? null);
       setStatusMessage("Identity verified. Physical meetup unlocked.");
     });
   };

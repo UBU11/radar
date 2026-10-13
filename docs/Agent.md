@@ -1,7 +1,7 @@
 ## 1. Project Overview & Core Purpose
 **Project Name:** Radar (Campus Prediction Market & Local-First Meetup Platform)
 **Goal:** A high-throughput prediction market with a live anonymous chat attached to every poll, funneling into a private, offline-first 24-hour physical meetup protocol.
-**Stack:** Next.js (App Router, React 19), Tailwind CSS v4, Shadcn/ui, Supabase (PostgreSQL, Auth, Realtime), PowerSync/SQLite (Local-first CRDTs), Cloudflare Workers + Hono + Upstash Redis (Betting Engine), Vercel AI SDK + Mistral AI + Zod (Moderation).
+**Stack:** Next.js (App Router, React 19), Tailwind CSS v4, Shadcn/ui with cult ui, Supabase (PostgreSQL, Auth, Realtime), PowerSync/SQLite (Local-first CRDTs), Cloudflare Workers + Hono + Upstash Redis (Betting Engine), Vercel AI SDK + Groq AI + Zod (Moderation).
 
 ## 2. Architecture Boundaries & Constraints
 ### Always Do:

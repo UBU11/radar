@@ -28,6 +28,7 @@ export interface Database {
           balance?: number;
           created_at?: string;
         };
+        Relationships: [];
       };
       markets: {
         Row: {
@@ -63,6 +64,7 @@ export interface Database {
           total_pool_no?: number;
           created_at?: string;
         };
+        Relationships: [];
       };
       bets: {
         Row: {
@@ -92,6 +94,22 @@ export interface Database {
           odds_at_time?: number;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "bets_market_id_fkey";
+            columns: ["market_id"];
+            isOneToOne: false;
+            referencedRelation: "markets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       market_messages: {
         Row: {
@@ -115,6 +133,15 @@ export interface Database {
           content?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "market_messages_market_id_fkey";
+            columns: ["market_id"];
+            isOneToOne: false;
+            referencedRelation: "markets";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       meetups: {
         Row: {
@@ -153,6 +180,15 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "meetups_market_id_fkey";
+            columns: ["market_id"];
+            isOneToOne: false;
+            referencedRelation: "markets";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       meetup_messages: {
         Row: {
@@ -176,6 +212,32 @@ export interface Database {
           encrypted_payload?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "meetup_messages_meetup_id_fkey";
+            columns: ["meetup_id"];
+            isOneToOne: false;
+            referencedRelation: "meetups";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+    };
+    Views: {
+      v_secure_meetups: {
+        Row: {
+          id: string;
+          market_id: string;
+          user_a_id: string;
+          user_b_id: string;
+          user_b_real_name: string | null;
+          split_key_hash_a: string;
+          split_key_hash_b: string;
+          meetup_verified: boolean;
+          expires_at: string;
+          created_at: string;
+        };
+        Relationships: [];
       };
     };
     Functions: {
@@ -186,6 +248,12 @@ export interface Database {
         };
         Returns: boolean;
       };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }

@@ -1,7 +1,9 @@
 import { PowerSyncDatabase } from "@powersync/web";
 import { AppSchema } from "./schema";
+import { RadarBackendConnector } from "./connector";
 
 let powerSyncInstance: PowerSyncDatabase | null = null;
+let connectorInstance: RadarBackendConnector | null = null;
 
 export function getPowerSyncClient(): PowerSyncDatabase {
   if (typeof window === "undefined") {
@@ -12,7 +14,7 @@ export function getPowerSyncClient(): PowerSyncDatabase {
     powerSyncInstance = new PowerSyncDatabase({
       schema: AppSchema,
       database: {
-        dbFilename: "radar_local_meetups.sqlite",
+        dbFilename: "radar_local_v2.sqlite",
       },
     });
   }
@@ -20,10 +22,16 @@ export function getPowerSyncClient(): PowerSyncDatabase {
   return powerSyncInstance;
 }
 
-// ponytail: stub offline connector until backend PowerSync service URI is configured
-export async function initPowerSyncSync() {
+export async function initPowerSyncSync(): Promise<PowerSyncDatabase | null> {
   if (typeof window === "undefined") return null;
+
   const db = getPowerSyncClient();
   await db.init();
+
+  if (!connectorInstance) {
+    connectorInstance = new RadarBackendConnector();
+    await db.connect(connectorInstance);
+  }
+
   return db;
 }

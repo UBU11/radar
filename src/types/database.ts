@@ -69,6 +69,7 @@ export interface Database {
       bets: {
         Row: {
           id: string;
+          idempotency_key: string;
           market_id: string;
           user_id: string;
           outcome: "YES" | "NO";
@@ -78,6 +79,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          idempotency_key: string;
           market_id: string;
           user_id: string;
           outcome: "YES" | "NO";
@@ -87,6 +89,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          idempotency_key?: string;
           market_id?: string;
           user_id?: string;
           outcome?: "YES" | "NO";
@@ -114,6 +117,7 @@ export interface Database {
       market_messages: {
         Row: {
           id: string;
+          idempotency_key: string;
           market_id: string;
           anonymous_handle: string;
           content: string;
@@ -121,6 +125,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          idempotency_key: string;
           market_id: string;
           anonymous_handle: string;
           content: string;
@@ -128,6 +133,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          idempotency_key?: string;
           market_id?: string;
           anonymous_handle?: string;
           content?: string;
@@ -149,10 +155,10 @@ export interface Database {
           market_id: string;
           user_a_id: string;
           user_b_id: string;
-          user_b_real_name: string | null;
-          split_key_hash_a: string;
-          split_key_hash_b: string;
+          status: "pending" | "verified" | "expired";
           meetup_verified: boolean;
+          pin_hash: string;
+          salt: string;
           expires_at: string;
           created_at: string;
         };
@@ -161,10 +167,10 @@ export interface Database {
           market_id: string;
           user_a_id: string;
           user_b_id: string;
-          user_b_real_name: string;
-          split_key_hash_a: string;
-          split_key_hash_b: string;
+          status?: "pending" | "verified" | "expired";
           meetup_verified?: boolean;
+          pin_hash: string;
+          salt: string;
           expires_at?: string;
           created_at?: string;
         };
@@ -173,10 +179,10 @@ export interface Database {
           market_id?: string;
           user_a_id?: string;
           user_b_id?: string;
-          user_b_real_name?: string | null;
-          split_key_hash_a?: string;
-          split_key_hash_b?: string;
+          status?: "pending" | "verified" | "expired";
           meetup_verified?: boolean;
+          pin_hash?: string;
+          salt?: string;
           expires_at?: string;
           created_at?: string;
         };
@@ -222,23 +228,38 @@ export interface Database {
           }
         ];
       };
-    };
-    Views: {
-      v_secure_meetups: {
+      user_private_profiles: {
         Row: {
-          id: string;
-          market_id: string;
-          user_a_id: string;
-          user_b_id: string;
-          user_b_real_name: string | null;
-          split_key_hash_a: string;
-          split_key_hash_b: string;
-          meetup_verified: boolean;
-          expires_at: string;
+          user_id: string;
+          real_name: string;
+          contact_handle: string;
           created_at: string;
         };
-        Relationships: [];
+        Insert: {
+          user_id: string;
+          real_name: string;
+          contact_handle: string;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          real_name?: string;
+          contact_handle?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_private_profiles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
+    };
+    Views: {
+      [_ in never]: never;
     };
     Functions: {
       deduct_user_balance_atomic: {

@@ -4,6 +4,7 @@ export const BetOutcomeSchema = z.enum(["YES", "NO"]);
 export type BetOutcome = z.infer<typeof BetOutcomeSchema>;
 
 export const BetInputSchema = z.object({
+  idempotencyKey: z.string().uuid("Invalid idempotency key format"),
   marketId: z.string().uuid("Invalid market ID"),
   userId: z.string().uuid("Invalid user ID"),
   outcome: BetOutcomeSchema,
@@ -12,6 +13,7 @@ export const BetInputSchema = z.object({
 export type BetInput = z.infer<typeof BetInputSchema>;
 
 export const CreateMarketSchema = z.object({
+  idempotencyKey: z.string().uuid("Invalid idempotency key format").optional(),
   title: z.string().min(5, "Title must be at least 5 characters").max(140),
   category: z.string().min(2).max(50),
   resolutionCriteria: z.string().min(10, "Resolution criteria required"),
@@ -24,4 +26,6 @@ export interface MarketOdds {
   noPrice: number;
   yesProbability: number;
   noProbability: number;
+  yesMultiplier: number;
+  noMultiplier: number;
 }

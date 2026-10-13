@@ -24,9 +24,10 @@ create table if not exists public.markets (
   created_at timestamptz not null default now()
 );
 
--- Bets
+-- Bets (Processed via Cloudflare Worker Hono / Lua script)
 create table if not exists public.bets (
   id uuid primary key default gen_random_uuid(),
+  idempotency_key uuid not null unique,
   market_id uuid not null references public.markets(id) on delete cascade,
   user_id uuid not null references public.users(id) on delete cascade,
   outcome text not null check (outcome in ('YES', 'NO')),
@@ -38,22 +39,23 @@ create table if not exists public.bets (
 -- Anonymous Market Live Chat
 create table if not exists public.market_messages (
   id uuid primary key default gen_random_uuid(),
+  idempotency_key uuid not null unique,
   market_id uuid not null references public.markets(id) on delete cascade,
   anonymous_handle text not null,
   content text not null,
   created_at timestamptz not null default now()
 );
 
--- Private 24-Hour Meetups with Split-Key Protocol
+-- Private 24-Hour Meetups (Double-blind separation: zero secrets in this table)
 create table if not exists public.meetups (
   id uuid primary key default gen_random_uuid(),
   market_id uuid not null references public.markets(id) on delete cascade,
   user_a_id uuid not null references public.users(id) on delete cascade,
   user_b_id uuid not null references public.users(id) on delete cascade,
-  user_b_real_name text not null,
-  split_key_hash_a text not null,
-  split_key_hash_b text not null,
+  status text not null default 'pending' check (status in ('pending', 'verified', 'expired')),
   meetup_verified boolean not null default false,
+  pin_hash text not null,
+  salt text not null,
   expires_at timestamptz not null default (now() + interval '24 hours'),
   created_at timestamptz not null default now()
 );
@@ -64,6 +66,14 @@ create table if not exists public.meetup_messages (
   meetup_id uuid not null references public.meetups(id) on delete cascade,
   sender_id uuid not null references public.users(id) on delete cascade,
   encrypted_payload text not null,
+  created_at timestamptz not null default now()
+);
+
+-- User Private Profiles: Isolated table protected by double-blind RLS policy
+create table if not exists public.user_private_profiles (
+  user_id uuid primary key references public.users(id) on delete cascade,
+  real_name text not null,
+  contact_handle text not null,
   created_at timestamptz not null default now()
 );
 
@@ -92,6 +102,7 @@ alter table public.bets enable row level security;
 alter table public.market_messages enable row level security;
 alter table public.meetups enable row level security;
 alter table public.meetup_messages enable row level security;
+alter table public.user_private_profiles enable row level security;
 
 -- Public read for open markets & anonymous chats
 create policy "Allow public read on markets" on public.markets
@@ -109,20 +120,16 @@ create policy "Meetup participants access" on public.meetups
     auth.uid() = user_a_id or auth.uid() = user_b_id
   );
 
--- Secure view: Never expose user_b_real_name until meetup_verified is true
-create or replace view public.v_secure_meetups as
-select
-  id,
-  market_id,
-  user_a_id,
-  user_b_id,
-  case
-    when meetup_verified = true then user_b_real_name
-    else null
-  end as user_b_real_name,
-  split_key_hash_a,
-  split_key_hash_b,
-  meetup_verified,
-  expires_at,
-  created_at
-from public.meetups;
+-- Double-blind RLS Policy: Only reveal private profile if auth.uid() is the user OR if verified meetup exists uniting them
+create policy "Reveal private profile only upon verified meetup handshake" on public.user_private_profiles
+  for select using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.meetups
+      where meetup_verified = true
+        and (
+          (user_a_id = auth.uid() and user_b_id = user_private_profiles.user_id)
+          or (user_b_id = auth.uid() and user_a_id = user_private_profiles.user_id)
+        )
+    )
+  );

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { CreateMarketSchema, BetInputSchema, type CreateMarketInput, type BetInput } from "@/types/market";
-import { pushBetToQueue } from "@/lib/betting/queue";
+import { executeAtomicBet } from "@/lib/betting/queue";
 
 export async function createMarketAction(input: CreateMarketInput) {
   const validated = CreateMarketSchema.safeParse(input);
@@ -39,9 +39,16 @@ export async function submitBetToQueueAction(input: BetInput) {
   }
 
   try {
-    // Bet queue buffer: prevents direct high-frequency load on PostgreSQL connection pool
-    const result = await pushBetToQueue(validated.data);
-    return { success: true, jobId: result.jobId, queuedAt: result.queuedAt };
+    const result = await executeAtomicBet(validated.data);
+    if (!result.success) {
+      return { success: false, error: result.error || "Failed to place bet" };
+    }
+
+    return {
+      success: true,
+      jobId: result.jobId,
+      newBalance: result.newBalance,
+    };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }

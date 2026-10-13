@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "radar-betting-engine",
+  "main": "workers/betting-engine/src/index.ts",
+  "compatibility_date": "2025-02-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BET_QUEUE_KEY": "radar:queue:bets"
+  }
+}

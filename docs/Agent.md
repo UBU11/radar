@@ -25,14 +25,16 @@
 - **Structure:** Separate sections with 1px hairline borders (`border-white/10`). Use compact padding (`p-3`, `p-4`) to maximize data density.
 - **Borders:** Use sharp corners (`rounded-sm` or `rounded-md` max).
 - **Color Palette:** Monochrome (black, white, gray) for 95% of the UI. Use exactly one vibrant accent color (e.g., Neon Cyan or Electric Yellow) exclusively for primary call-to-action buttons (Place Bet, Meetup Mode).
+- **Cult UI & Shadcn Extension:** Cult UI is used for specialized design engineering and micro-interactions on top of Shadcn/ui. Components are sourced into `src/components/ui/` via the `@cult-ui` registry, retaining the dark-mode terminal palette and avoiding unnecessary visual bloat.
 
 ## 4. Development Commands
 - Install dependencies: `pnpm install`
 - Start local development server: `pnpm dev`
+- Add Cult UI component: `pnpm dlx shadcn@latest add @cult-ui/<component-name>`
 - Generate Supabase types: `pnpm run update-types`
 - Lint & Typecheck: `pnpm typecheck`
 
 ## 5. Security & AI Pipeline
-- **AI Moderation:** All user-submitted market ideas must pass through the Vercel AI SDK using Mistral. Enforce structured outputs using `generateObject` with a strict Zod schema matching `{ title, category, resolution_criteria, expiry_date }`.
+- **AI Moderation:** All user-submitted market ideas must pass through the Vercel AI SDK using Groq (`@ai-sdk/groq` with `llama-3.3-70b-versatile`). Enforce structured outputs using `generateObject` with a strict Zod schema matching `{ title, category, resolution_criteria, expiry_date }`. Provide deterministic fallback mocks for local dev when `GROQ_API_KEY` is unset.
 - **Environment Variables:** Never log API keys or user session tokens. Ensure `NEXT_PUBLIC_` prefixes are only used for safe client-side keys.
 

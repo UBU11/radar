@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatOddsMultiplier, formatCredits } from "@/lib/utils/format";
 import { submitBetToQueueAction } from "@/app/actions/market-actions";
+import { generateUuidV7 } from "@/lib/utils/uuidv7";
 import { CheckCircle2, Loader2, Zap } from "lucide-react";
 
 interface BettingPanelProps {
@@ -34,9 +35,11 @@ export function BettingPanel({
     setErrorMessage(null);
 
     startTransition(async () => {
-      // Mock authenticated student UUID for boilerplate demonstration
       const dummyUserId = "00000000-0000-0000-0000-000000000001";
+      const idempotencyKey = generateUuidV7();
+
       const result = await submitBetToQueueAction({
+        idempotencyKey,
         marketId,
         userId: dummyUserId,
         outcome,
@@ -48,7 +51,7 @@ export function BettingPanel({
         return;
       }
 
-      setReceipt(result.jobId || "QUEUED");
+      setReceipt(result.jobId || idempotencyKey);
     });
   };
 
@@ -60,7 +63,7 @@ export function BettingPanel({
             <Zap className="w-4 h-4 text-[#00F0FF]" />
             <span>ORDER ENTRY</span>
           </CardTitle>
-          <span className="text-[10px] font-mono text-neutral-400">BUFFERED VIA REDIS</span>
+          <span className="text-[10px] font-mono text-neutral-400">ATOMIC LUA BUFFER</span>
         </div>
         <p className="text-xs text-neutral-300 truncate mt-1">{marketTitle}</p>
       </CardHeader>
@@ -77,7 +80,9 @@ export function BettingPanel({
             }`}
           >
             <span>YES</span>
-            <span className="text-[11px] text-[#00F0FF]">{formatOddsMultiplier(yesMultiplier)}</span>
+            <span className="text-[11px] tabular-nums text-[#00F0FF]">
+              {formatOddsMultiplier(yesMultiplier)}
+            </span>
           </button>
 
           <button
@@ -90,14 +95,16 @@ export function BettingPanel({
             }`}
           >
             <span>NO</span>
-            <span className="text-[11px] text-[#00F0FF]">{formatOddsMultiplier(noMultiplier)}</span>
+            <span className="text-[11px] tabular-nums text-[#00F0FF]">
+              {formatOddsMultiplier(noMultiplier)}
+            </span>
           </button>
         </div>
 
         <div>
           <div className="flex justify-between text-xs text-neutral-400 font-mono mb-1.5">
             <span>STAKE AMOUNT</span>
-            <span className="text-white">${formatCredits(amount)}</span>
+            <span className="text-white tabular-nums">${formatCredits(amount)}</span>
           </div>
           <div className="grid grid-cols-4 gap-1.5">
             {[10, 25, 50, 100].map((preset) => (
@@ -105,7 +112,7 @@ export function BettingPanel({
                 key={preset}
                 size="sm"
                 variant={amount === preset ? "terminal" : "ghost"}
-                className={`font-mono text-xs ${amount === preset ? "border-white/40 text-white" : ""}`}
+                className={`font-mono tabular-nums text-xs ${amount === preset ? "border-white/40 text-white" : ""}`}
                 onClick={() => setAmount(preset)}
               >
                 ${preset}
@@ -117,16 +124,20 @@ export function BettingPanel({
         <div className="bg-[#111111] border border-white/10 p-2.5 rounded-sm space-y-1 font-mono text-xs">
           <div className="flex justify-between text-neutral-400">
             <span>POTENTIAL PAYOUT</span>
-            <span className="text-white font-bold">${formatCredits(potentialPayout)}</span>
+            <span className="text-white tabular-nums font-bold">
+              ${formatCredits(potentialPayout)}
+            </span>
           </div>
           <div className="flex justify-between text-[11px] text-neutral-500">
             <span>EST. NET PROFIT</span>
-            <span className="text-[#00F0FF]">+${formatCredits(potentialPayout - amount)}</span>
+            <span className="text-[#00F0FF] tabular-nums">
+              +${formatCredits(potentialPayout - amount)}
+            </span>
           </div>
         </div>
 
         {receipt && (
-          <div className="p-2 bg-emerald-950/30 border border-emerald-500/30 rounded-sm text-xs font-mono text-emerald-400 flex items-center gap-2">
+          <div className="p-2 bg-emerald-950/30 border border-emerald-500/30 rounded-sm text-xs font-mono tabular-nums text-emerald-400 flex items-center gap-2">
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">TX QUEUED: {receipt.slice(0, 12)}...</span>
           </div>
@@ -138,7 +149,6 @@ export function BettingPanel({
           </div>
         )}
 
-        {/* Vibrant Neon Cyan accent button for primary CTA */}
         <Button
           variant="accent"
           className="w-full font-mono text-xs tracking-wider"

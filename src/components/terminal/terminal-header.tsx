@@ -37,7 +37,7 @@ export function TerminalHeader({ initialBalance = 1000.0, marketCount = 12 }: Te
         <span className="text-white/20 text-xs">|</span>
         <Badge variant="outline" className="hidden sm:inline-flex items-center gap-1">
           <Activity className="w-3 h-3 text-[#00F0FF]" />
-          <span>MARKETS: {marketCount}</span>
+          <span className="tabular-nums">MARKETS: {marketCount}</span>
         </Badge>
         <Badge variant={isOnline ? "success" : "warning"} className="flex items-center gap-1">
           {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
@@ -52,8 +52,7 @@ export function TerminalHeader({ initialBalance = 1000.0, marketCount = 12 }: Te
         </div>
         <div className="bg-[#111111] border border-white/10 px-2.5 py-1 rounded-sm flex items-center space-x-2">
           <span className="text-[10px] uppercase font-mono text-neutral-400">CREDITS</span>
-          {/* Monospace utility ensures no horizontal UI jitter during credit balance updates */}
-          <span className="font-mono text-xs font-semibold text-[#00F0FF]">
+          <span className="font-mono tabular-nums text-xs font-semibold text-[#00F0FF]">
             ${formatCredits(balance)}
           </span>
         </div>

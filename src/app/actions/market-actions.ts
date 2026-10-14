@@ -11,7 +11,7 @@ export async function createMarketAction(input: CreateMarketInput) {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: createdMarket, error: insertError } = await supabase
     .from("markets")
     .insert({
       title: validated.data.title,
@@ -25,11 +25,11 @@ export async function createMarketAction(input: CreateMarketInput) {
     .select("id")
     .single();
 
-  if (error) {
-    return { success: false, error: error.message };
+  if (insertError || !createdMarket) {
+    return { success: false, error: insertError?.message || "Failed to create market" };
   }
 
-  return { success: true, marketId: data.id };
+  return { success: true, marketId: createdMarket.id };
 }
 
 export async function submitBetToQueueAction(input: BetInput) {
@@ -49,7 +49,7 @@ export async function submitBetToQueueAction(input: BetInput) {
       jobId: result.jobId,
       newBalance: result.newBalance,
     };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
   }
 }

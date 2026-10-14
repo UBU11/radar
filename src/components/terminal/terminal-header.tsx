@@ -16,14 +16,14 @@ export function TerminalHeader({ initialBalance = 1000.0, marketCount = 12 }: Te
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const syncOnlineState = () => setIsOnline(true);
+    const syncOfflineState = () => setIsOnline(false);
 
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", syncOnlineState);
+    window.addEventListener("offline", syncOfflineState);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", syncOnlineState);
+      window.removeEventListener("offline", syncOfflineState);
     };
   }, []);
 

@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatOddsMultiplier, formatCredits } from "@/lib/utils/format";
-import { submitBetToQueueAction } from "@/app/actions/market-actions";
 import { generateUuidV7 } from "@/lib/utils/uuidv7";
 import { CheckCircle2, Loader2, Zap } from "lucide-react";
 
@@ -30,7 +29,7 @@ export function BettingPanel({
   const activeMultiplier = outcome === "YES" ? yesMultiplier : noMultiplier;
   const potentialPayout = amount * activeMultiplier;
 
-  const handlePlaceBet = () => {
+  const submitBetOrder = () => {
     setReceipt(null);
     setErrorMessage(null);
 
@@ -38,20 +37,29 @@ export function BettingPanel({
       const dummyUserId = "00000000-0000-0000-0000-000000000001";
       const idempotencyKey = generateUuidV7();
 
-      const result = await submitBetToQueueAction({
-        idempotencyKey,
-        marketId,
-        userId: dummyUserId,
-        outcome,
-        amount,
-      });
+      try {
+        const response = await fetch("/api/bets/place", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            idempotencyKey,
+            marketId,
+            userId: dummyUserId,
+            outcome,
+            amount,
+          }),
+        });
 
-      if (!result.success) {
-        setErrorMessage(result.error || "Failed to place bet");
-        return;
+        const orderResult = await response.json();
+        if (!response.ok || !orderResult.success) {
+          setErrorMessage(orderResult.error || "Failed to place bet");
+          return;
+        }
+
+        setReceipt(orderResult.jobId || idempotencyKey);
+      } catch (err) {
+        setErrorMessage((err as Error).message);
       }
-
-      setReceipt(result.jobId || idempotencyKey);
     });
   };
 
@@ -152,7 +160,7 @@ export function BettingPanel({
         <Button
           variant="accent"
           className="w-full font-mono text-xs tracking-wider"
-          onClick={handlePlaceBet}
+          onClick={submitBetOrder}
           disabled={isPending}
         >
           {isPending ? (

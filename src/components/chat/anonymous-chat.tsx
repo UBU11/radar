@@ -44,7 +44,7 @@ export function AnonymousChat({ marketId }: AnonymousChatProps) {
   const [inputValue, setInputValue] = useState("");
   const [optimisticMessages, setOptimisticMessages] = useState<MessageRow[]>([]);
 
-  const { data: dbMessages } = usePowerSyncQuery<MessageRow>(
+  const { records: dbMessages } = usePowerSyncQuery<MessageRow>(
     "SELECT id, idempotency_key, market_id, anonymous_handle, content, created_at FROM market_messages WHERE market_id = ? ORDER BY created_at ASC",
     [marketId],
     FALLBACK_MESSAGES
@@ -52,13 +52,13 @@ export function AnonymousChat({ marketId }: AnonymousChatProps) {
 
   const displayedMessages = [...dbMessages, ...optimisticMessages];
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const dispatchChatMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!inputValue.trim()) return;
 
-    const messageId = crypto.randomUUID();
+    const messageId = generateUuidV7();
     const idempotencyKey = generateUuidV7();
-    const handle = `Anon#${Math.floor(100 + Math.random() * 900)}`;
+    const userTag = `Anon#${Math.floor(100 + Math.random() * 900)}`;
     const content = inputValue.trim();
     const createdAt = new Date().toISOString();
 
@@ -66,7 +66,7 @@ export function AnonymousChat({ marketId }: AnonymousChatProps) {
       id: messageId,
       idempotency_key: idempotencyKey,
       market_id: marketId,
-      anonymous_handle: handle,
+      anonymous_handle: userTag,
       content,
       created_at: createdAt,
     };
@@ -74,14 +74,12 @@ export function AnonymousChat({ marketId }: AnonymousChatProps) {
     setInputValue("");
 
     try {
-      // Direct local SQLite write: PowerSync uploadData connector flushes asynchronously
       const db = getPowerSyncClient();
       await db.execute(
         "INSERT INTO market_messages (id, idempotency_key, market_id, anonymous_handle, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        [messageId, idempotencyKey, marketId, handle, content, createdAt]
+        [messageId, idempotencyKey, marketId, userTag, content, createdAt]
       );
     } catch {
-      // Local dev optimistic fallback if SQLite table is not initialized yet
       setOptimisticMessages((prev) => [...prev, newMessage]);
     }
   };
@@ -114,7 +112,7 @@ export function AnonymousChat({ marketId }: AnonymousChatProps) {
         ))}
       </div>
 
-      <form onSubmit={handleSendMessage} className="mt-3 pt-2 border-t border-white/5 flex gap-2">
+      <form onSubmit={dispatchChatMessage} className="mt-3 pt-2 border-t border-white/5 flex gap-2">
         <input
           type="text"
           value={inputValue}

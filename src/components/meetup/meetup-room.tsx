@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { usePowerSyncQuery } from "@/lib/powersync/hooks";
-import { verifyOfflinePin, computePinHash } from "@/lib/crypto/meetup-pin";
+import { getPowerSyncClient } from "@/lib/powersync/client";
+import { verifyOfflinePin } from "@/lib/crypto/meetup-pin";
 import { verifyMeetupPinAction } from "@/app/actions/meetup-actions";
 import { KeyRound, ShieldCheck, MapPin, Clock, Lock, Check } from "lucide-react";
 
@@ -39,27 +40,25 @@ export function MeetupRoom({ meetupId }: MeetupRoomProps) {
     user_b_id: "00000000-0000-0000-0000-000000000002",
     status: "pending",
     meetup_verified: 0,
-    // Expected hash for PIN "4821" with salt "campus_rotunda_salt"
     pin_hash: "8c7dd0f3de03bd4663e809f6e52ca0c495c02b28c5a2c4224c6ef34a04d8fc3d",
     salt: "campus_rotunda_salt",
     expires_at: new Date(Date.now() + 1000 * 60 * 60 * 18).toISOString(),
   };
 
-  const { data: rows } = usePowerSyncQuery<MeetupRow>(
+  const { records: meetupRows } = usePowerSyncQuery<MeetupRow>(
     "SELECT id, market_id, user_a_id, user_b_id, status, meetup_verified, pin_hash, salt, expires_at FROM meetups WHERE id = ?",
     [meetupId],
     [fallbackMeetup]
   );
 
-  const meetup = rows[0] || fallbackMeetup;
+  const meetup = meetupRows[0] || fallbackMeetup;
   const isVerified = localVerified || meetup.meetup_verified === 1;
 
-  const handleVerifyPin = () => {
+  const confirmMeetupPin = () => {
     if (pinInput.length !== 4) return;
     setStatusMessage(null);
 
     startTransition(async () => {
-      // 1. Client-side offline verification via WebCrypto API
       const isOfflineValid = await verifyOfflinePin(
         pinInput,
         meetup.id,
@@ -70,20 +69,29 @@ export function MeetupRoom({ meetupId }: MeetupRoomProps) {
       if (isOfflineValid) {
         setLocalVerified(true);
         setStatusMessage("Offline handshake verified via WebCrypto.");
+
+        try {
+          const db = getPowerSyncClient();
+          await db.execute(
+            "UPDATE meetups SET meetup_verified = 1, status = 'verified' WHERE id = ?",
+            [meetup.id]
+          );
+        } catch {
+          // Dev fallback when local database table is mock
+        }
       }
 
-      // 2. Queue & sync proof to backend to unlock user_private_profiles
-      const result = await verifyMeetupPinAction({
+      const syncResult = await verifyMeetupPinAction({
         meetupId: meetup.id,
         userId: "00000000-0000-0000-0000-000000000001",
         pin: pinInput,
       });
 
-      if (result.success && result.realName) {
-        setPeerRealName(result.realName);
+      if (syncResult.success && syncResult.realName) {
+        setPeerRealName(syncResult.realName);
         setStatusMessage("Identity unlocked via double-blind verification.");
       } else if (!isOfflineValid) {
-        setStatusMessage(result.error || "PIN verification failed.");
+        setStatusMessage(syncResult.error || "PIN verification failed.");
       }
     });
   };
@@ -152,7 +160,7 @@ export function MeetupRoom({ meetupId }: MeetupRoomProps) {
                 variant="accent"
                 size="sm"
                 className="flex-1 font-mono text-xs whitespace-nowrap"
-                onClick={handleVerifyPin}
+                onClick={confirmMeetupPin}
                 disabled={isPending || pinInput.length !== 4}
               >
                 {isPending ? "VERIFYING..." : "CONFIRM PIN"}

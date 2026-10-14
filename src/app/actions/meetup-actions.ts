@@ -12,21 +12,26 @@ export async function verifyMeetupPinAction(input: VerifyMeetupPinInput) {
 
   const supabase = await createClient();
 
-  const { data: meetup, error: fetchError } = await supabase
+  const { data: meetupRecord, error: fetchError } = await supabase
     .from("meetups")
     .select("id, user_a_id, user_b_id, pin_hash, salt, meetup_verified, expires_at")
     .eq("id", validated.data.meetupId)
     .single();
 
-  if (fetchError || !meetup) {
+  if (fetchError || !meetupRecord) {
     return { success: false, error: "Meetup record not found" };
   }
 
-  if (new Date(meetup.expires_at).getTime() < Date.now()) {
+  if (new Date(meetupRecord.expires_at).getTime() < Date.now()) {
     return { success: false, error: "Meetup protocol expired (24-hour window closed)" };
   }
 
-  const isValidPin = await verifyOfflinePin(validated.data.pin, meetup.id, meetup.salt, meetup.pin_hash);
+  const isValidPin = await verifyOfflinePin(
+    validated.data.pin,
+    meetupRecord.id,
+    meetupRecord.salt,
+    meetupRecord.pin_hash
+  );
   if (!isValidPin) {
     return { success: false, error: "Incorrect 4-digit PIN" };
   }
@@ -34,15 +39,19 @@ export async function verifyMeetupPinAction(input: VerifyMeetupPinInput) {
   const { error: updateError } = await supabase
     .from("meetups")
     .update({ meetup_verified: true, status: "verified" })
-    .eq("id", meetup.id);
+    .eq("id", meetupRecord.id);
 
   if (updateError) {
     return { success: false, error: "Failed to persist meetup verification state" };
   }
 
   // Double-blind privacy: peer profile is queried from user_private_profiles only once verified
-  const peerUserId = meetup.user_a_id === validated.data.userId ? meetup.user_b_id : meetup.user_a_id;
-  const { data: profile } = await supabase
+  const peerUserId =
+    meetupRecord.user_a_id === validated.data.userId
+      ? meetupRecord.user_b_id
+      : meetupRecord.user_a_id;
+
+  const { data: peerPrivateProfile } = await supabase
     .from("user_private_profiles")
     .select("real_name, contact_handle")
     .eq("user_id", peerUserId)
@@ -51,7 +60,7 @@ export async function verifyMeetupPinAction(input: VerifyMeetupPinInput) {
   return {
     success: true,
     verified: true,
-    realName: profile?.real_name ?? null,
-    contactHandle: profile?.contact_handle ?? null,
+    realName: peerPrivateProfile?.real_name ?? null,
+    contactHandle: peerPrivateProfile?.contact_handle ?? null,
   };
 }

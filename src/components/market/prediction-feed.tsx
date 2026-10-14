@@ -45,7 +45,7 @@ interface RawMarketRow {
 }
 
 export function PredictionFeed() {
-  const { data: rawMarkets, isLoading } = usePowerSyncQuery<RawMarketRow>(
+  const { records: rawMarkets, isLoading } = usePowerSyncQuery<RawMarketRow>(
     "SELECT id, title, category, resolution_criteria, expiry_date, total_pool_yes, total_pool_no FROM markets ORDER BY created_at DESC",
     [],
     []

@@ -7,7 +7,7 @@ export function usePowerSyncQuery<T = Record<string, unknown>>(
   sql: string,
   parameters: (string | number | boolean | null)[] = [],
   fallbackData: T[] = []
-): { data: T[]; isLoading: boolean; error: Error | null } {
+): { data: T[]; records: T[]; isLoading: boolean; error: Error | null } {
   const [data, setData] = useState<T[]>(fallbackData);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -54,5 +54,5 @@ export function usePowerSyncQuery<T = Record<string, unknown>>(
     };
   }, [sql, JSON.stringify(parameters)]);
 
-  return { data, isLoading, error };
+  return { data, records: data, isLoading, error };
 }

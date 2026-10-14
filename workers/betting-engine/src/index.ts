@@ -1,5 +1,6 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
+import { ATOMIC_BET_LUA_SCRIPT } from "../../../src/lib/betting/lua-script";
 
 const BetPayloadSchema = z.object({
   idempotencyKey: z.string().uuid(),
@@ -15,50 +16,22 @@ type Bindings = {
   BET_QUEUE_KEY?: string;
 };
 
-const ATOMIC_BET_LUA_SCRIPT = `
-local userBalanceKey = KEYS[1]
-local marketPoolKey = KEYS[2]
-local queueKey = KEYS[3]
-local idempotencyKey = KEYS[4]
-
-local betAmount = tonumber(ARGV[1])
-local betPayload = ARGV[2]
-
-if redis.call('EXISTS', idempotencyKey) == 1 then
-  return { 'DUPLICATE', redis.call('GET', idempotencyKey) }
-end
-
-local currentBalance = tonumber(redis.call('GET', userBalanceKey) or '1000')
-
-if currentBalance < betAmount then
-  return { 'INSUFFICIENT_BALANCE', tostring(currentBalance) }
-end
-
-local newBalance = currentBalance - betAmount
-redis.call('SET', userBalanceKey, tostring(newBalance))
-redis.call('INCRBYFLOAT', marketPoolKey, betAmount)
-redis.call('LPUSH', queueKey, betPayload)
-redis.call('SETEX', idempotencyKey, 86400, 'CONFIRMED')
-
-return { 'SUCCESS', tostring(newBalance) }
-`;
-
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get("/health", (c) => {
-  return c.json({ status: "healthy", service: "radar-betting-engine" });
+app.get("/health", (ctx) => {
+  return ctx.json({ status: "healthy", service: "radar-betting-engine" });
 });
 
-async function handleBetPlacement(c: any) {
-  const body = await c.req.json().catch(() => null);
+async function placeBetEndpoint(ctx: Context<{ Bindings: Bindings }>) {
+  const body = await ctx.req.json().catch(() => null);
   const parseResult = BetPayloadSchema.safeParse(body);
 
   if (!parseResult.success) {
-    return c.json({ error: "Invalid bet payload", details: parseResult.error.format() }, 400);
+    return ctx.json({ error: "Invalid bet payload", details: parseResult.error.format() }, 400);
   }
 
   const bet = parseResult.data;
-  const queueKey = c.env.BET_QUEUE_KEY || "radar:queue:bets";
+  const queueKey = ctx.env.BET_QUEUE_KEY || "radar:queue:bets";
   const userBalanceKey = `radar:user:${bet.userId}:balance`;
   const marketPoolKey = `radar:market:${bet.marketId}:pool:${bet.outcome}`;
   const idempotencyKey = `radar:idempotency:${bet.idempotencyKey}`;
@@ -68,11 +41,11 @@ async function handleBetPlacement(c: any) {
     queuedAt: Date.now(),
   });
 
-  const redisUrl = c.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = c.env.UPSTASH_REDIS_REST_TOKEN;
+  const redisUrl = ctx.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = ctx.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!redisUrl || !redisToken) {
-    return c.json({
+    return ctx.json({
       success: true,
       jobId: bet.idempotencyKey,
       status: "queued",
@@ -103,21 +76,21 @@ async function handleBetPlacement(c: any) {
   });
 
   if (!redisResponse.ok) {
-    return c.json({ error: "Failed to execute atomic bet transaction" }, 502);
+    return ctx.json({ error: "Failed to execute atomic bet transaction" }, 502);
   }
 
   const result = (await redisResponse.json()) as { result: [string, string] };
   const [status, details] = result.result;
 
   if (status === "INSUFFICIENT_BALANCE") {
-    return c.json({ error: "Insufficient balance", currentBalance: parseFloat(details) }, 422);
+    return ctx.json({ error: "Insufficient balance", currentBalance: parseFloat(details) }, 422);
   }
 
   if (status === "DUPLICATE") {
-    return c.json({ error: "Duplicate idempotency key: already processed" }, 409);
+    return ctx.json({ error: "Duplicate idempotency key: already processed" }, 409);
   }
 
-  return c.json(
+  return ctx.json(
     {
       success: true,
       jobId: bet.idempotencyKey,
@@ -131,7 +104,7 @@ async function handleBetPlacement(c: any) {
   );
 }
 
-app.post("/api/bets/place", handleBetPlacement);
-app.post("/bets", handleBetPlacement);
+app.post("/api/bets/place", placeBetEndpoint);
+app.post("/bets", placeBetEndpoint);
 
 export default app;
